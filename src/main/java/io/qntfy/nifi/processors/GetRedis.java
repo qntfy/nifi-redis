@@ -31,7 +31,7 @@ import redis.clients.jedis.JedisPoolConfig;
 @SupportsBatching
 @Tags({ "Redis", "Get", "Consume", "Message", "PubSub" })
 @CapabilityDescription("Poll a Kafka set for values reaching a given threshold. Create a flowfile for the content and attributes stored.")
-public class GetRedisProcessor extends AbstractProcessor {
+public class GetRedis extends AbstractProcessor {
 	private volatile JedisPool jedisPool;
 	
 	public static final PropertyDescriptor REDIS_CONNECTION_STRING = new PropertyDescriptor.Builder()
