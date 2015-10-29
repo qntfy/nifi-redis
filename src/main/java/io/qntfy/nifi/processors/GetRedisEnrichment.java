@@ -11,6 +11,7 @@ import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
 import org.apache.nifi.annotation.lifecycle.OnScheduled;
 import org.apache.nifi.annotation.lifecycle.OnStopped;
+import org.apache.nifi.components.AllowableValue;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.logging.ProcessorLog;
@@ -23,6 +24,9 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.FlowFileFilters;
 import org.apache.nifi.processor.util.StandardValidators;
 
+import io.qntfy.nifi.util.AttributeFlowFileEnricherImpl;
+import io.qntfy.nifi.util.FlowFileEnricher;
+import io.qntfy.nifi.util.JSONFlowFileEnricherImpl;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -57,11 +61,27 @@ public class GetRedisEnrichment extends AbstractProcessor {
             .expressionLanguageSupported(false)
             .build();
 	public static final PropertyDescriptor ENRICHMENTS = new PropertyDescriptor.Builder()
-            .name("Required Enrichments")
-            .description("Number of enrichment elements required to process")
+            .name("Number of Required Enrichments")
+            .description("Number of enrichment elements required to continue processing")
             .required(true)
             .addValidator(StandardValidators.INTEGER_VALIDATOR)
             .expressionLanguageSupported(false)
+            .build();
+	public static final AllowableValue VALUE_TRUE = new AllowableValue("True");
+    public static final AllowableValue VALUE_FALSE = new AllowableValue("False");
+	public static final PropertyDescriptor JSON_CONTENT_MODE = new PropertyDescriptor.Builder()
+	        .name("JSON Content Mode")
+	        .description("If original message and enrichment data are JSON, this can be enabled to merge based on content")
+	        .allowableValues(VALUE_TRUE, VALUE_FALSE)
+	        .required(true)
+	        .expressionLanguageSupported(false)
+	        .build();
+	public static final PropertyDescriptor JSON_ENRICHMENT_FIELD = new PropertyDescriptor.Builder()
+	        .name("JSON Enrichment Field")
+	        .description("If JSON Content Mode is enabled, add enrichment data to this JSON map")
+	        .required(true)
+	        .expressionLanguageSupported(false)
+            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .build();
 	public static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
@@ -87,6 +107,8 @@ public class GetRedisEnrichment extends AbstractProcessor {
         props.add(REDIS_CONNECTION_STRING);
         props.add(ENRICHMENTS);
         props.add(TOPIC);
+        props.add(JSON_CONTENT_MODE);
+        props.add(JSON_ENRICHMENT_FIELD);
         props.add(clientNameWithDefault);
         return props;
     }
@@ -115,7 +137,17 @@ public class GetRedisEnrichment extends AbstractProcessor {
         String attemptsAttribute = context.getProperty(CLIENT_NAME) + ".attempts";
         String source = context.getProperty(TOPIC).getValue();
         Long requiredEnrichments = context.getProperty(ENRICHMENTS).asLong();
-        // final long start = System.nanoTime();
+        
+        
+        boolean jsonMode = context.getProperty(JSON_CONTENT_MODE).asBoolean();
+        String jsonField = context.getProperty(JSON_ENRICHMENT_FIELD).getValue();
+        
+        FlowFileEnricher ffe = null;
+        if (jsonMode) {
+            ffe = new JSONFlowFileEnricherImpl(jsonField);
+        } else {
+            ffe = new AttributeFlowFileEnricherImpl();
+        }
 
         final List<FlowFile> flowFiles = session.get(FlowFileFilters.newSizeBasedFilter(1, DataUnit.MB, 100));
         if (flowFiles.isEmpty()) {
@@ -141,10 +173,8 @@ public class GetRedisEnrichment extends AbstractProcessor {
                     session.transfer(flowFile, REL_RETRY);
                 } else {
                     Map<String, String> enrichments = jedis.hgetAll(flowFileKey);
-                    flowFile = session.putAllAttributes(flowFile, enrichments);
+                    flowFile = ffe.enrich(session, flowFile, enrichments);
                     logger.info("Transferred {} to 'success'", new Object[] {flowFile});
-                    //session.getProvenanceReporter().modifyContent(flowFile, stopWatch.getElapsed(TimeUnit.MILLISECONDS));
-                    session.getProvenanceReporter().modifyAttributes(flowFile, "FlowFile enriched with desired records");
                     session.transfer(flowFile, REL_SUCCESS);
                     jedis.del(flowFileKey);
                 }
