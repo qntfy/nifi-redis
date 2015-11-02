@@ -9,6 +9,7 @@ import javax.json.Json;
 import javax.json.stream.JsonParser;
 import javax.json.stream.JsonParser.Event;
 
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.nifi.processor.io.StreamCallback;
 
 public class StreamingJSONAppender implements StreamCallback {
@@ -48,7 +49,7 @@ public class StreamingJSONAppender implements StreamCallback {
             switch (e) {
             case KEY_NAME:
                 writeComma(prev, out);
-                str = "\"" + jp.getString() + "\": ";
+                str = "\"" + StringEscapeUtils.escapeJson(jp.getString()) + "\": ";
                 out.write(str.getBytes());
                 if (depth.size() == 1) {
                     // this could be the top-level target
@@ -65,6 +66,9 @@ public class StreamingJSONAppender implements StreamCallback {
                 depth.push(A);
                 break;
             case START_OBJECT:
+                if (prev == Event.END_OBJECT) {
+                    out.write(", ".getBytes());
+                }
                 out.write("{".getBytes());
                 depth.push(O);
                 break;
@@ -75,7 +79,7 @@ public class StreamingJSONAppender implements StreamCallback {
             case END_OBJECT:
                 if (depth.size() == 1 && !seenTarget) {
                     writeComma(prev, out);
-                    str = "\"" + this.field + "\": {" + this.content + "}";
+                    str = "\"" + StringEscapeUtils.escapeJson(this.field) + "\": {" + this.content + "}";
                     out.write(str.getBytes());
                 }
                 if (insideTarget) {
@@ -88,13 +92,26 @@ public class StreamingJSONAppender implements StreamCallback {
                 break;
             case VALUE_STRING:
                 writeComma(prev, out);
-                str = "\"" + jp.getString() + "\"";
+                str = "\"" + StringEscapeUtils.escapeJson(jp.getString()) + "\"";
                 out.write(str.getBytes());
                 break;
             case VALUE_NUMBER:
                 writeComma(prev, out);
                 out.write(jp.getString().getBytes());
                 break;
+            case VALUE_TRUE:
+                writeComma(prev, out);
+                out.write("true".getBytes());
+                break;
+            case VALUE_FALSE:
+                writeComma(prev, out);
+                out.write("false".getBytes());
+                break;
+            case VALUE_NULL:
+                writeComma(prev, out);
+                out.write("null".getBytes());
+                break;
+                
             default:
                 break;
             }

@@ -57,4 +57,50 @@ public class StreamingJSONAppenderTest {
         
         assertEquals("JSON string is malformed.", output, os.toString());
     }
+    
+    
+    @Test
+    public void testEscapedJson() throws IOException {
+        String data = "{\"test\": \"value\"}";
+        StreamingJSONAppender sja = new StreamingJSONAppender("enrichment", data);
+        
+        String input =  "{\"test\": {\"test2\": \"ABC\", \"test1\": \"<a href=\\\"http:\\/\\/test-url.com\\\"\\/>\"}}";
+        String output = "{\"test\": {\"test2\": \"ABC\", \"test1\": \"<a href=\\\"http:\\/\\/test-url.com\\\"\\/>\"}, \"enrichment\": {\"test\": \"value\"}}";
+        
+        InputStream is = new ByteArrayInputStream(input.getBytes(Charset.defaultCharset()));
+        OutputStream os = new ByteArrayOutputStream();
+        sja.process(is, os);
+        
+        assertEquals("JSON string is malformed.", output, os.toString());
+    }
+    
+    @Test
+    public void testEscapedJsonWithBoolean() throws IOException {
+        String data = "{\"test\": \"value\"}";
+        StreamingJSONAppender sja = new StreamingJSONAppender("enrichment", data);
+        
+        String input =  "{\"test\": {\"test2\": true, \"test1\": \"<a href=\\\"http:\\/\\/test-url.com\\\"\\/>\"}}";
+        String output = "{\"test\": {\"test2\": true, \"test1\": \"<a href=\\\"http:\\/\\/test-url.com\\\"\\/>\"}, \"enrichment\": {\"test\": \"value\"}}";
+        
+        InputStream is = new ByteArrayInputStream(input.getBytes(Charset.defaultCharset()));
+        OutputStream os = new ByteArrayOutputStream();
+        sja.process(is, os);
+        
+        assertEquals("JSON string is malformed.", output, os.toString());
+    }
+    
+    @Test
+    public void testArraysOfJsons() throws IOException {
+        String data = "{\"test\": \"value\"}";
+        StreamingJSONAppender sja = new StreamingJSONAppender("enrichment", data);
+        
+        String input =  "{\"test\": {\"test2\": [{\"a\": \"b\"}, {\"c\": \"d\"}], \"test1\": \"<a href=\\\"http:\\/\\/test-url.com\\\"\\/>\"}}";
+        String output = "{\"test\": {\"test2\": [{\"a\": \"b\"}, {\"c\": \"d\"}], \"test1\": \"<a href=\\\"http:\\/\\/test-url.com\\\"\\/>\"}, \"enrichment\": {\"test\": \"value\"}}";
+        
+        InputStream is = new ByteArrayInputStream(input.getBytes(Charset.defaultCharset()));
+        OutputStream os = new ByteArrayOutputStream();
+        sja.process(is, os);
+        
+        assertEquals("JSON string is malformed.", output, os.toString());
+    }
 }
