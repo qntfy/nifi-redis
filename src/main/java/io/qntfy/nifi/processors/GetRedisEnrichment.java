@@ -169,6 +169,7 @@ public class GetRedisEnrichment extends AbstractProcessor {
                     
                     flowFile = session.putAttribute(flowFile, attemptsAttribute, String.valueOf(attempts));                 
                     flowFile = session.penalize(flowFile);
+                    logger.info("Transferred {} to 'retry', attempt {}", new Object[] {uuid, attempts});
                     session.getProvenanceReporter().modifyAttributes(flowFile, "FlowFile modified with attempt attribute");
                     session.transfer(flowFile, REL_RETRY);
                 } else {
@@ -180,6 +181,7 @@ public class GetRedisEnrichment extends AbstractProcessor {
                 }
             }
         } catch (JedisConnectionException e) { 
+            logger.error("Failed to connect to Redis due to {}; routing flowfiles to failure", new Object[] { e.getMessage() });
             session.transfer(flowFiles, REL_FAILURE);
         }
 	}
