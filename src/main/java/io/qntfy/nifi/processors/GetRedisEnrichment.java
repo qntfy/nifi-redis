@@ -1,5 +1,7 @@
 package io.qntfy.nifi.processors;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -40,10 +42,9 @@ public class GetRedisEnrichment extends AbstractProcessor {
 	
 	public static final PropertyDescriptor REDIS_CONNECTION_STRING = new PropertyDescriptor.Builder()
             .name("Redis Connection String")
-            .description("The Connection String to use in order to connect to Redis. This is often a comma-separated list of <host>:<port>"
-                    + " combinations. For example, host1:2181,host2:2181,host3:2188")
+            .description("The Connection String to use in order to connect to Redis.")
             .required(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
+            .addValidator(StandardValidators.URI_VALIDATOR)
             .expressionLanguageSupported(false)
             .build();
 	public static final PropertyDescriptor CLIENT_NAME = new PropertyDescriptor.Builder()
@@ -124,7 +125,12 @@ public class GetRedisEnrichment extends AbstractProcessor {
 	
 	@OnScheduled
 	public void createRedisPool(final ProcessContext context) {
-		jedisPool = new JedisPool(new JedisPoolConfig(), context.getProperty(REDIS_CONNECTION_STRING).getValue());
+		try {
+            jedisPool = new JedisPool(new JedisPoolConfig(), new URI(context.getProperty(REDIS_CONNECTION_STRING).getValue()));
+        } catch (URISyntaxException e) {
+            getLogger().error("Unable to establish Redis connection pool.");
+            // this should be previously caught by the input validation
+        }
 	}
 	
 	@OnStopped
