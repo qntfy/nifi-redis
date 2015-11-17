@@ -23,7 +23,7 @@ public class JSONFlowFileEnricherImpl implements FlowFileEnricher {
         return ff;
     }
     
-    private static String makeJsonFromMapOfJsons(Map<String, String> content) {
+    protected static String makeJsonFromMapOfJsons(Map<String, String> content) {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         int i = 0;
@@ -32,7 +32,7 @@ public class JSONFlowFileEnricherImpl implements FlowFileEnricher {
                 sb.append(", ");
             }
             i += 1;
-            sb.append(e.getKey() + ": " + e.getValue());
+            sb.append("\"" + e.getKey() + "\": " + e.getValue());
         }
         sb.append("}");
         return sb.toString();
