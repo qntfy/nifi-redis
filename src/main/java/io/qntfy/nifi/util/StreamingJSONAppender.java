@@ -62,6 +62,9 @@ public class StreamingJSONAppender implements StreamCallback {
                 
                 break;
             case START_ARRAY:
+                if (prev == Event.END_ARRAY) {
+                    out.write(", ".getBytes());
+                }
                 out.write("[".getBytes());
                 depth.push(A);
                 break;

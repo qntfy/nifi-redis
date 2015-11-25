@@ -103,4 +103,21 @@ public class StreamingJSONAppenderTest {
         
         assertEquals("JSON string is malformed.", output, os.toString());
     }
+    
+    @Test
+    public void testNestedArrays() throws IOException {
+        String data = "{\"test\": \"value\"}";
+        StreamingJSONAppender sja = new StreamingJSONAppender("enrichment", data);
+        
+        String input =  "{\"test\": {\"coordinates\": [[[-12, 23], [-72.18, 14.23]]], \"type\": \"Polygon\"}}";
+        String output = "{\"test\": {\"coordinates\": [[[-12, 23], [-72.18, 14.23]]], \"type\": \"Polygon\"}, \"enrichment\": {\"test\": \"value\"}}";
+        
+        InputStream is = new ByteArrayInputStream(input.getBytes(Charset.defaultCharset()));
+        OutputStream os = new ByteArrayOutputStream();
+        sja.process(is, os);
+        
+        assertEquals("JSON string is malformed.", output, os.toString());
+    }
+    
+    
 }
