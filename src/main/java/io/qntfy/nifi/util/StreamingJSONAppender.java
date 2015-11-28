@@ -40,6 +40,7 @@ public class StreamingJSONAppender implements StreamCallback {
             throws IOException {
         JsonParser jp = Json.createParser(in);
         Event prev = null;
+        int depthPastTarget = 0;
         boolean insideTarget = false;
         boolean seenTarget = false;
         while (jp.hasNext()) {
@@ -69,6 +70,9 @@ public class StreamingJSONAppender implements StreamCallback {
                 depth.push(A);
                 break;
             case START_OBJECT:
+                if (insideTarget) {
+                    depthPastTarget += 1;
+                }
                 if (prev == Event.END_OBJECT) {
                     out.write(", ".getBytes());
                 }
@@ -85,10 +89,12 @@ public class StreamingJSONAppender implements StreamCallback {
                     str = "\"" + StringEscapeUtils.escapeJson(this.field) + "\": {" + this.content + "}";
                     out.write(str.getBytes());
                 }
-                if (insideTarget) {
+                if (insideTarget && depthPastTarget == 1) {
                     writeComma(prev, out);
                     out.write(this.content.getBytes());
                     insideTarget = false;
+                } else if (insideTarget) {
+                    depthPastTarget -= 1;
                 }
                 out.write("}".getBytes());
                 depth.pop();
