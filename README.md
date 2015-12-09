@@ -1,6 +1,8 @@
 # nifi-redis 
-[![Software License](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
+[![Latest Release](https://img.shields.io/github/release/qntfy/nifi-redis.svg)](https://github.com/qntfy/nifi-redis/releases/latest)
+[![Software License](https://img.shields.io/github/license/qntfy/nifi-redis.svg)](LICENSE.md)
 [![Build Status](https://travis-ci.org/qntfy/nifi-redis.svg?branch=master)](https://travis-ci.org/qntfy/nifi-redis)
+[![Total Downloads](https://img.shields.io/github/downloads/qntfy/nifi-redis/total.svg)](https://github.com/qntfy/nifi-redis/releases)
 
 
 
