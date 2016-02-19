@@ -167,8 +167,10 @@ public class GetRedisEnrichment extends AbstractProcessor {
                 String uuid = flowFile.getAttribute("uuid");
                 String flowFileKey = source + ":" + uuid;
                 
-                // if not all the values exist
-                if (jedis.hlen(flowFileKey) != requiredEnrichments) {
+                if (requiredEnrichments == 0) {
+                    logger.info("Transferred {} to 'success'", new Object[] {flowFile});
+                    session.transfer(flowFile, REL_SUCCESS);
+                } else if (jedis.hlen(flowFileKey) != requiredEnrichments) {
                     String attemptsStr = flowFile.getAttribute(attemptsAttribute);
                     Integer attempts = (attemptsStr == null) ? 0 : Integer.valueOf(attemptsStr);
                     attempts += 1;

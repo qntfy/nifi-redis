@@ -17,4 +17,12 @@ public class JSONFlowFileEnricherImplTest {
         String expectedJson = "{\"jsonKey1\": {\"text\": \"json blob 1\"}, \"jsonKey2\": {\"text\": \"json blob 2\"}}";
         assertEquals("Combined json is malformed.", expectedJson, combinedJson);
     }
+    
+    @Test
+    public void makeJsonFromEmptyMapOfJsonsTest() {
+        Map<String, String> jsonMap = new TreeMap<>();
+        String combinedJson = JSONFlowFileEnricherImpl.makeJsonFromMapOfJsons(jsonMap);
+        String expectedJson = "{}";
+        assertEquals("Combined json is malformed.", expectedJson, combinedJson);
+    }
 }
