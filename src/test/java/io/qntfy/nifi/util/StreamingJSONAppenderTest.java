@@ -29,6 +29,21 @@ public class StreamingJSONAppenderTest {
     }
     
     @Test
+    public void testEmptyAppendToExistingEnrichmentField() throws IOException {
+        String data = "{}";
+        StreamingJSONAppender sja = new StreamingJSONAppender("enrichment", data);
+        
+        String input = "{\"test\": {\"test2\": \"ABC\", \"test1\": 123}, \"enrichment\": {\"existing\": \"value3\"}}";
+        String output = "{\"test\": {\"test2\": \"ABC\", \"test1\": 123}, \"enrichment\": {\"existing\": \"value3\"}}";
+        
+        InputStream is = new ByteArrayInputStream(input.getBytes(Charset.defaultCharset()));
+        OutputStream os = new ByteArrayOutputStream();
+        sja.process(is, os);
+        
+        assertEquals("JSON string is malformed.", output, os.toString());
+    }
+    
+    @Test
     public void testMultipleEnrichments() throws IOException {
         String data = "{\"spinseeker\": {\"text\": \"spinseeker value\"}}";
         StreamingJSONAppender sja = new StreamingJSONAppender("metrics", data);
@@ -94,12 +109,42 @@ public class StreamingJSONAppenderTest {
     }
     
     @Test
+    public void testAppendToExistingEmptyEnrichmentFieldEmpty() throws IOException {
+        String data = "{}";
+        StreamingJSONAppender sja = new StreamingJSONAppender("enrichment", data);
+        
+        String input = "{\"test\": {\"test2\": \"ABC\", \"test1\": 123}, \"enrichment\": {}}";
+        String output = "{\"test\": {\"test2\": \"ABC\", \"test1\": 123}, \"enrichment\": {}}";
+        
+        InputStream is = new ByteArrayInputStream(input.getBytes(Charset.defaultCharset()));
+        OutputStream os = new ByteArrayOutputStream();
+        sja.process(is, os);
+        
+        assertEquals("JSON string is malformed.", output, os.toString());
+    }
+    
+    @Test
     public void testAddNewEnrichmentField() throws IOException {
         String data = "{\"test\": \"value\"}";
         StreamingJSONAppender sja = new StreamingJSONAppender("enrichment", data);
         
         String input = "{\"test\": {\"test2\": \"ABC\", \"test1\": 123}}";
         String output = "{\"test\": {\"test2\": \"ABC\", \"test1\": 123}, \"enrichment\": {\"test\": \"value\"}}";
+        
+        InputStream is = new ByteArrayInputStream(input.getBytes(Charset.defaultCharset()));
+        OutputStream os = new ByteArrayOutputStream();
+        sja.process(is, os);
+        
+        assertEquals("JSON string is malformed.", output, os.toString());
+    }
+    
+    @Test
+    public void testAddNewEnrichmentFieldEmpty() throws IOException {
+        String data = "{}";
+        StreamingJSONAppender sja = new StreamingJSONAppender("enrichment", data);
+        
+        String input = "{\"test\": {\"test2\": \"ABC\", \"test1\": 123}}";
+        String output = "{\"test\": {\"test2\": \"ABC\", \"test1\": 123}, \"enrichment\": {}}";
         
         InputStream is = new ByteArrayInputStream(input.getBytes(Charset.defaultCharset()));
         OutputStream os = new ByteArrayOutputStream();

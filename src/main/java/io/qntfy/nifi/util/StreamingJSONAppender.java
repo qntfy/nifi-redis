@@ -15,6 +15,7 @@ import org.apache.nifi.processor.io.StreamCallback;
 public class StreamingJSONAppender implements StreamCallback {
     private final String field;
     private final String content;
+    private final boolean hasContent;
     private final Stack<String> depth = new Stack<>();
     private static final String A = "A";
     private static final String O = "O";
@@ -27,6 +28,12 @@ public class StreamingJSONAppender implements StreamCallback {
             throw new IllegalArgumentException("content must be valid JSON");
         }
         this.content = content.substring(start + 1, end);
+        if (this.content.replaceAll("\\s", "").length() == 0) {
+            this.hasContent = false;
+        } else {
+            this.hasContent = true;
+        }
+        
     }
     
     private static void writeComma(Event prev, OutputStream out) throws IOException {
@@ -89,7 +96,7 @@ public class StreamingJSONAppender implements StreamCallback {
                     str = "\"" + StringEscapeUtils.escapeJson(this.field) + "\": {" + this.content + "}";
                     out.write(str.getBytes());
                 }
-                if (insideTarget && depthPastTarget == 1) {
+                if (insideTarget && depthPastTarget == 1 && hasContent) {
                     writeComma(prev, out);
                     out.write(this.content.getBytes());
                     insideTarget = false;
