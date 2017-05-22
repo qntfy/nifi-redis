@@ -19,6 +19,14 @@ The processor accepts FlowFiles and then looks at the contents of a Redis hash b
 If the specified number of values are in the redis hash for the given flowfile, the contents from Redis will either be added as attributes to the FlowFile or used to enrich the content. 
 Currently, only enrichment of JSON is supported.
 
+### PutRedis
+This processor is currently completed.
+
+Before using this processor in your project, you'd better make some modifications on the source code and build a nar file to satisfy your requirement.
+
+### PutRedisCluster
+This processor is currently incomplete.
+
 #### Configuration Options
 - **Redis Connection String**: The Connection String to use in order to connect to Redis.
 - **Client Name**: Client Name to use when communicating with Redis

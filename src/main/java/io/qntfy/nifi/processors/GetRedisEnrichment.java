@@ -1,13 +1,8 @@
 package io.qntfy.nifi.processors;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
+import io.qntfy.nifi.util.AttributeFlowFileEnricherImpl;
+import io.qntfy.nifi.util.FlowFileEnricher;
+import io.qntfy.nifi.util.JSONFlowFileEnricherImpl;
 import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -16,23 +11,19 @@ import org.apache.nifi.annotation.lifecycle.OnStopped;
 import org.apache.nifi.components.AllowableValue;
 import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.logging.ProcessorLog;
-import org.apache.nifi.processor.AbstractProcessor;
-import org.apache.nifi.processor.DataUnit;
-import org.apache.nifi.processor.ProcessContext;
-import org.apache.nifi.processor.ProcessSession;
-import org.apache.nifi.processor.Relationship;
+import org.apache.nifi.logging.ComponentLog;
+import org.apache.nifi.processor.*;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.util.FlowFileFilters;
 import org.apache.nifi.processor.util.StandardValidators;
-
-import io.qntfy.nifi.util.AttributeFlowFileEnricherImpl;
-import io.qntfy.nifi.util.FlowFileEnricher;
-import io.qntfy.nifi.util.JSONFlowFileEnricherImpl;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.exceptions.JedisConnectionException;
+
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.*;
 
 @SupportsBatching
 @Tags({ "Redis", "Get", "Consume", "Message", "PubSub" })
@@ -160,7 +151,7 @@ public class GetRedisEnrichment extends AbstractProcessor {
             return;
         }
 
-        final ProcessorLog logger = getLogger();
+        final ComponentLog logger = getLogger();
         try (Jedis jedis = jedisPool.getResource()) {
             for (FlowFile flowFile : flowFiles) {
                 // try to hit the needed values in redis

@@ -1,14 +1,5 @@
 package io.qntfy.nifi.processors;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.documentation.CapabilityDescription;
 import org.apache.nifi.annotation.documentation.Tags;
@@ -23,10 +14,14 @@ import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.OutputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
-
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @SupportsBatching
 @Tags({ "Redis", "Get", "Consume", "Message", "PubSub" })
@@ -36,8 +31,8 @@ public class GetRedis extends AbstractProcessor {
 	
 	public static final PropertyDescriptor REDIS_CONNECTION_STRING = new PropertyDescriptor.Builder()
             .name("Redis Connection String")
-            .description("The Connection String to use in order to connect to Redis. This is often a comma-separated list of <host>:<port>"
-                    + " combinations. For example, host1:2181,host2:2181,host3:2188")
+            .description("The Connection String to use in order to connect to Redis. "
+                    + "For example, host1, host2, host3")
             .required(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .expressionLanguageSupported(false)
