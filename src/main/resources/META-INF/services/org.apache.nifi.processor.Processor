@@ -1,2 +1,4 @@
+io.qntfy.nifi.processors.PutRedis
+io.qntfy.nifi.processors.PutRedisCluster
 io.qntfy.nifi.processors.GetRedis
 io.qntfy.nifi.processors.GetRedisEnrichment
