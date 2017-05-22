@@ -17,10 +17,7 @@ import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.processor.io.InputStreamCallback;
 import org.apache.nifi.processor.util.StandardValidators;
 import org.apache.nifi.stream.io.StreamUtils;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
-import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -36,93 +33,125 @@ import java.util.concurrent.TimeUnit;
 @Tags({"Redis", "Put", "PubSub"})
 @CapabilityDescription("Poll flowfile with content reaching a given threshold. Put key and value (decoded from the content in a predefined way) into Redis.")
 public class PutRedis extends AbstractProcessor {
-    private volatile JedisPool jedisPool;
+    protected volatile JedisPool jedisPool;
 
-    static final PropertyDescriptor REDIS_CONNECTION_STRING = new PropertyDescriptor.Builder()
-            .name("Redis Connection String")
-            .description("The Connection String to use in order to connect to Redis. " +
-                    "For example, host1, host2, 192.168.203.15")
+    protected static final int DEFAULT_DATABASE = 0;
+    protected static final int DEFAULT_MAX_TOTAL = 20;
+    protected static final int DEFAULT_MAX_IDEL = 10;
+    protected static final int DEFAULT_MIN_IDEL = 0;
+    protected static final int DEFAULT_MAX_WAIT_MILLIES = -1;
+
+    protected static final PropertyDescriptor REDIS_IP = new PropertyDescriptor.Builder()
+            .name("redis-ip")
+            .displayName("Redis IP")
+            .description("Specifies the IP of Redis server to put data. " +
+                    "For example, 127.0.0.1 . " +
+                    "IP works with following property port as <IP>:<PORT>.")
             .required(true)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
             .expressionLanguageSupported(false)
             .build();
 
-    static final PropertyDescriptor REDIS_MAX_TOTAL = new PropertyDescriptor.Builder()
-            .name("Max total of Redis pool")
-            .description("The configuration of Redis connection pool")
+    protected static final PropertyDescriptor REDIS_PORT = new PropertyDescriptor.Builder()
+            .name("redis-port")
+            .displayName("Redis PORT")
+            .description("Specifies the PORT of Redis server to put data. " +
+                    "For example, 2183. If not set, DEFAULT port 6379 will be used. " +
+                    "PORT works together with above property IP as <IP>:<PORT>.")
+            .required(true)
+            .defaultValue(Protocol.DEFAULT_PORT + "")
+            .addValidator(StandardValidators.POSITIVE_INTEGER_VALIDATOR)
+            .expressionLanguageSupported(false)
+            .build();
+
+    protected static final PropertyDescriptor REDIS_PASSWORD = new PropertyDescriptor.Builder()
+            .name("redis-password")
+            .displayName("Redis Password")
+            .description("Specifies the Password to use for put data into Redis server which has password security control.")
             .required(false)
-            .defaultValue("20")
+            .expressionLanguageSupported(false)
+            .build();
+
+    protected static final PropertyDescriptor REDIS_DATABASE = new PropertyDescriptor.Builder()
+            .name("redis-database")
+            .displayName("Redis database")
+            .description("Specified Database in Redis server. By DEFAULT it's 0. " +
+                    "Notice that if password not set, the value of this configuration will be forced as 0.")
+            .required(false)
+            .defaultValue(DEFAULT_DATABASE + "")
             .addValidator(StandardValidators.INTEGER_VALIDATOR)
             .expressionLanguageSupported(false)
             .build();
 
-    static final PropertyDescriptor REDIS_MAX_IDEL = new PropertyDescriptor.Builder()
-            .name("Max IDEL of Redis pool")
-            .description("The configuration of Redis connection pool")
+    protected static final PropertyDescriptor REDIS_MAX_TOTAL = new PropertyDescriptor.Builder()
+            .name("max-total-connection-pool")
+            .displayName("Max Total Connections")
+            .description("A configuration of JedisPool defined max total connections of the connection pool.")
             .required(false)
-            .defaultValue("10")
+            .defaultValue(DEFAULT_MAX_TOTAL + "")
             .addValidator(StandardValidators.INTEGER_VALIDATOR)
             .expressionLanguageSupported(false)
             .build();
 
-    static final PropertyDescriptor REDIS_MIN_IDEL = new PropertyDescriptor.Builder()
-            .name("Min IDEL of Redis pool")
-            .description("The configuration of Redis connection pool")
+    protected static final PropertyDescriptor REDIS_MAX_IDEL = new PropertyDescriptor.Builder()
+            .name("max-IDEL-of-connection-pool")
+            .displayName("Max IDEL of Connection Pool")
+            .description("A configuration of JedisPool defined max count idel connections of the connection pool.")
             .required(false)
-            .defaultValue("0")
+            .defaultValue(DEFAULT_MAX_IDEL + "")
             .addValidator(StandardValidators.INTEGER_VALIDATOR)
             .expressionLanguageSupported(false)
             .build();
 
-    static final PropertyDescriptor REDIS_MAX_WAIT_MILLIES = new PropertyDescriptor.Builder()
-            .name("Max wait millies in Redis pool")
-            .description("The configuration of Redis connection pool")
+    protected static final PropertyDescriptor REDIS_MIN_IDEL = new PropertyDescriptor.Builder()
+            .name("min-IDEL-of-connection-pool")
+            .displayName("Min IDEL of Connection Pool")
+            .description("A configuration of JedisPool defined min count idel connections of the connection pool.")
             .required(false)
-            .defaultValue("-1")
+            .defaultValue(DEFAULT_MIN_IDEL + "")
+            .addValidator(StandardValidators.INTEGER_VALIDATOR)
+            .expressionLanguageSupported(false)
+            .build();
+
+    protected static final PropertyDescriptor REDIS_MAX_WAIT_MILLIES = new PropertyDescriptor.Builder()
+            .name("max-wait-millies-in-connection-pool")
+            .displayName("Max wait millies")
+            .description("A configuration of JedisPool defined max wait millies when no resource of the connection pool.")
+            .required(false)
+            .defaultValue(DEFAULT_MAX_WAIT_MILLIES + "")
             .addValidator(StandardValidators.LONG_VALIDATOR)
             .expressionLanguageSupported(false)
             .build();
 
-    static final PropertyDescriptor CHARACTER_SET = new PropertyDescriptor.Builder()
+    protected static final PropertyDescriptor CHARACTER_SET = new PropertyDescriptor.Builder()
             .name("Character Set")
             .description("The Character Set in which the data is encoded")
             .required(true)
-            .addValidator(StandardValidators.CHARACTER_SET_VALIDATOR)
             .defaultValue("UTF-8")
+            .addValidator(StandardValidators.CHARACTER_SET_VALIDATOR)
             .build();
 
-    static final PropertyDescriptor CLIENT_NAME = new PropertyDescriptor.Builder()
-            .name("Client Name")
-            .description("Client Name to use when communicating with Redis (no use)")
-            .required(true)
-            .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .expressionLanguageSupported(false)
-            .build();
-
-    static final Relationship REL_SUCCESS = new Relationship.Builder()
+    protected static final Relationship REL_SUCCESS = new Relationship.Builder()
             .name("success")
             .description("All FlowFiles that are written to Redis are routed to this relationship")
             .build();
-    static final Relationship REL_FAILURE = new Relationship.Builder()
+    protected static final Relationship REL_FAILURE = new Relationship.Builder()
             .name("failure")
             .description("All FlowFiles that cannot be written to Redis are routed to this relationship")
             .build();
 
     @Override
     protected List<PropertyDescriptor> getSupportedPropertyDescriptors() {
-        final PropertyDescriptor clientNameWithDefault = new PropertyDescriptor.Builder()
-                .fromPropertyDescriptor(CLIENT_NAME)
-                .defaultValue("NiFi-" + getIdentifier())
-                .build();
-
         final List<PropertyDescriptor> props = new ArrayList<>();
-        props.add(REDIS_CONNECTION_STRING);
+        props.add(REDIS_IP);
+        props.add(REDIS_PORT);
+        props.add(REDIS_PASSWORD);
+        props.add(REDIS_DATABASE);
         props.add(CHARACTER_SET);
         props.add(REDIS_MAX_TOTAL);
         props.add(REDIS_MAX_IDEL);
         props.add(REDIS_MIN_IDEL);
         props.add(REDIS_MAX_WAIT_MILLIES);
-        props.add(clientNameWithDefault);
         return props;
     }
 
@@ -136,11 +165,33 @@ public class PutRedis extends AbstractProcessor {
 
     @OnScheduled
     public void createRedisPool(final ProcessContext context) {
-        String host = context.getProperty(REDIS_CONNECTION_STRING).getValue();
-        int maxTotal = context.getProperty(REDIS_MAX_TOTAL).asInteger();
-        int minIDEL = context.getProperty(REDIS_MIN_IDEL).asInteger();
-        int maxIDEL = context.getProperty(REDIS_MAX_IDEL).asInteger();
-        long maxWaitMillies = context.getProperty(REDIS_MAX_WAIT_MILLIES).asLong();
+        final ComponentLog logger = getLogger();
+
+        String host = context.getProperty(REDIS_IP).getValue();
+        int port = context.getProperty(REDIS_PORT).asInteger();
+        String password = context.getProperty(REDIS_PASSWORD).isSet()
+                ? context.getProperty(REDIS_PASSWORD).getValue() : null;
+        int database = context.getProperty(REDIS_DATABASE).isSet()
+                ? context.getProperty(REDIS_DATABASE).asInteger() : DEFAULT_DATABASE;
+        int maxTotal = context.getProperty(REDIS_MAX_TOTAL).isSet() ?
+                context.getProperty(REDIS_MAX_TOTAL).asInteger() : DEFAULT_MAX_TOTAL;
+        int minIDEL = context.getProperty(REDIS_MIN_IDEL).isSet() ?
+                context.getProperty(REDIS_MIN_IDEL).asInteger() : DEFAULT_MIN_IDEL;
+        int maxIDEL = context.getProperty(REDIS_MAX_IDEL).isSet() ?
+                context.getProperty(REDIS_MAX_IDEL).asInteger() : DEFAULT_MAX_IDEL;
+        long maxWaitMillies = context.getProperty(REDIS_MAX_WAIT_MILLIES).isSet() ?
+                context.getProperty(REDIS_MAX_WAIT_MILLIES).asLong() : DEFAULT_MAX_WAIT_MILLIES;
+
+        logger.info("Config args for JedisPool:\n" +
+                        "\t\tRedis Server Address = {}:{}\n" +
+                        "\t\tPassword = {}\n" +
+                        "\t\tDatabase = {}\n" +
+                        "\t\tMax Total = {}\n" +
+                        "\t\tMin IDEL = {}\n" +
+                        "\t\tMax IDEL = {}\n" +
+                        "\t\tMax Wait Millies= {}"
+                , new Object[]{host, port, password == null ? "null" : password,
+                        database, maxTotal, minIDEL, maxIDEL, maxWaitMillies});
 
         // config redis pool,
         // connection num ranges in [10,20],
@@ -151,12 +202,14 @@ public class PutRedis extends AbstractProcessor {
         poolConfig.setMinIdle(minIDEL);
         poolConfig.setMaxWaitMillis(maxWaitMillies);
 
-        jedisPool = new JedisPool(poolConfig, host);
+        jedisPool = password == null
+                ? new JedisPool(poolConfig, host, port, Protocol.DEFAULT_TIMEOUT)
+                : new JedisPool(poolConfig, host, port, Protocol.DEFAULT_TIMEOUT, password, database);
     }
 
     @OnStopped
     public void closeRedisPool(final ProcessContext context) {
-        jedisPool.destroy();
+        if (jedisPool != null) jedisPool.destroy();
     }
 
     @Override
@@ -181,6 +234,7 @@ public class PutRedis extends AbstractProcessor {
                 }
             });
 
+            //TODO --- do content decoding and put redis following!!!
             // mock data
             List<RedisPair> redisPairs = new ArrayList<>();
             for (int i = 0; i < 30; i++) {
@@ -195,6 +249,7 @@ public class PutRedis extends AbstractProcessor {
                 pipeline.ltrim(pair.getKey(), 0, 59);
             }
             pipeline.sync();
+            //TODO --- do content decoding and put redis above!!!
 
             final long millis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
             logger.info("Successfully inserted {} into Redis with {} messages in {} millis",
